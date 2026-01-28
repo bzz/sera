@@ -1,6 +1,6 @@
 ![SERA](assets/SERA.jpg)
 
-**Easily Setup SERA in Claude Code:** https://github.com/allenai/sera-cli.
+Test SERA in Claude Code for Free: https://github.com/allenai/sera-cli.
 
 # Installation
 
