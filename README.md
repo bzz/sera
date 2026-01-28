@@ -1,5 +1,4 @@
-
-Note: This codebase is being actively worked on, so expect many helpful updates in the next few days as we improve the codebase and clean up the pipeline!
+![SERA](assets/SERA.jpg)
 
 Use SERA models directly in Claude Code: https://github.com/allenai/sera-cli.
 
