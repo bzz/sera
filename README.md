@@ -34,6 +34,7 @@ The resulting server is usually `http://HOSTNAME:PORT/v1` if its an openai serve
 
 Every experiment can be run either with one inference server, or multiple for higher efficiency.
 We release several examples showing how to reproduce our experiments or run your own.
+[sera/config_schema.py](sera/config_schema.py) contains a full list of configuration settings, enabling even more control over experiments.
 
 ### 1. Specialization to Django/Sympy from SWE-Bench
 
@@ -46,7 +47,7 @@ python sera/main.py \
 
 ### 2. Specialization to Personal Repositories
 
-[/sera/configs/specialiation_personal.yaml](/sera/configs/specialiation_personal.yaml) defines a set of arbitrary codebases to generate data from.
+[sera/configs/specialization_personal.yaml](sera/configs/specialization_personal.yaml) defines a set of arbitrary codebases to generate data from.
 
 ```
 python sera/main.py \
@@ -69,10 +70,7 @@ Personal repositories require a little more involvement to generate data because
         - "pip install -e ."
       test_cmd: null
       python_version: 3.12 # For the docker container
-      top_level_folder:
-      # The main folder to look for to parse out functions.
-      # Multiple folders can be provided if the main folder changes through commits
-      # If this isnt provided, we try to automatically identify it by checking for folders like src/
+      top_level_folder: # The main folder to look for to parse out functions.
         - openhands
     - org_name: R2E-Gym
       last_name: R2E-Gym
@@ -175,7 +173,7 @@ distill.args.pipeline_repo=GENERATED_PATH
 
 # Training
 
-See the README.md in sera/datagen/train.
+See the README.md in [sera/datagen/train](sera/datagen/train).
 
 # Citation
 ```
