@@ -20,7 +20,7 @@ git clone --recurse-submodules https://github.com/allenai/SERA.git
 cd SERA
 conda create -n sera python=3.12
 conda activate sera
-pip install -e . -e modules/code2flow -e modules/SERA-SWE-agent -e modules/SERA-mini-swe-agent
+pip install -e . -e modules/code2flow -e modules/SERA-SWE-Agent -e modules/SERA-mini-swe-agent
 ```
 
 # Generation
