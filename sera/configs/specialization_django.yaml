@@ -9,7 +9,7 @@ defaults:
 name: specialize_django_test
 
 generate:
-  fns_per_repo: 3000
+  fns_per_repo: 5000
   insts_per_fn: 1
   existing_repos:
     - org_name: django # For swebench, pass in the instance_id so it can pull the container.

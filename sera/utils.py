@@ -109,6 +109,45 @@ def pp_query(system, prompt, model, base_url="", api_key="", max_tokens=4096, re
             retries -= 1
     return completion.choices[0].message.content
 
+def get_sweagent_patch(traj_dir, instance_id, seen_patches=None):
+    inst_pred = os.path.join(traj_dir, instance_id, f"{instance_id}.pred")
+    # Get pred patches
+    if os.path.exists(inst_pred):
+        model_patch = None
+        with open(inst_pred, "r") as f:
+            try:
+                pred_json = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                return None
+            model_patch = pred_json["model_patch"]
+        if model_patch:
+            if seen_patches and model_patch in seen_patches:
+                return None
+            return model_patch
+        else:
+            print(f"did not find pred patch for {instance_id}")
+            return None
+    return None
+
+def get_mini_sweagent_patch(traj_dir, instance_id, seen_patches=None):
+    inst_json = os.path.join(traj_dir, instance_id, f"{instance_id}.traj.json")
+    if os.path.exists(inst_json):
+        model_patch = None
+        with open(inst_json, "r") as f:
+            try:
+                pred_json = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                return None
+            model_patch = pred_json["messages"][-1]["extra"]["submission"]
+        if model_patch:
+            if seen_patches and model_patch in seen_patches:
+                return None
+            return model_patch
+        else:
+            print(f"did not find pred patch for {instance_id}")
+            return None
+    return None
+
 ##############################
 # Experiment Folder
 

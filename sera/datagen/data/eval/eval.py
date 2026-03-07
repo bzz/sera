@@ -5,7 +5,11 @@ from pathlib import Path
 from tqdm import tqdm
 
 from sera.config_schema import EvalConfig
-from sera.utils import load_yaml
+from sera.utils import (
+    get_sweagent_patch,
+    get_mini_sweagent_patch,
+    load_yaml
+)
 
 def compare_patch_recall(target_patch, produced_patch, threshold):
     target_patch_changes = []
@@ -37,7 +41,7 @@ def compare_patch_recall(target_patch, produced_patch, threshold):
         return None
     return (match_count / len(target_patch_changes)) >= threshold
 
-def eval_loop(config: EvalConfig, instances_fp: Path, second_stage_dir: Path):
+def eval_loop(config: EvalConfig, instances_fp: Path, second_stage_dir: Path, agent_harness: str):
     resolved_instances = []
     pred_json_found = os.path.exists(os.path.join(second_stage_dir, "preds.json"))
     if pred_json_found:
@@ -53,19 +57,12 @@ def eval_loop(config: EvalConfig, instances_fp: Path, second_stage_dir: Path):
                 continue
             model_patch = preds[instance_id]["model_patch"]
         else:
-            instance_pred_file = os.path.join(second_stage_dir, instance_id, f"{instance_id}.pred")
-            if not os.path.exists(instance_pred_file):
-                # This means the second stage didn't finish (which is common)
-                print("No instance pred file found")
-                continue
+            if agent_harness == "sweagent":
+                model_patch = get_sweagent_patch(second_stage_dir, instance_id)
+            elif agent_harness == "mini-swe-agent":
+                model_patch = get_mini_sweagent_patch(second_stage_dir, instance_id)
             else:
-                try:
-                    with open(instance_pred_file, "r") as f:
-                        instance_pred_json = json.load(f)
-                except Exception as e:
-                    # Skip the instance if no pred file
-                    continue
-                model_patch = instance_pred_json["model_patch"]
+                raise RuntimeError("Agent harness must be sweagent | mini-swe-agent")
         if not model_patch:
             print("No edit was made in the second stage")
             continue

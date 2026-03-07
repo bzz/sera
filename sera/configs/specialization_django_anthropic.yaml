@@ -16,10 +16,10 @@ generate:
       last_name: django
       source: swebench
       instance_id: django__django-7530
-    - org_name: django 
-      last_name: django
-      source: swebench
-      instance_id: django__django-12308 
+    # - org_name: django 
+    #   last_name: django
+    #   source: swebench
+    #   instance_id: django__django-12308 
     # - org_name: django 
     #   last_name: django
     #   source: swebench

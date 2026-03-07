@@ -1,7 +1,7 @@
-# SERA SVG Pipeline - Stage 1 (Rollout One) config
-# Adapted from SERA-SWE-Agent's e2e.yaml for mini-swe-agent
-# The instance_template is a placeholder; it gets overridden at runtime
-# by a randomly sampled rollout_one_prompt from the pipeline YAML.
+# SERA SVG Pipeline - Stage 2 config
+# Adapted from SERA-SWE-Agent's qwen.yaml for mini-swe-agent
+# Uses {{problem_statement}} (the synthetic PR from stage 1) in instance template.
+# Temperature 0.0 for deterministic behavior.
 
 agent:
   system_template: |
@@ -171,5 +171,5 @@ model:
   model_name: "openai/Qwen2.5-7B-Instruct"
   model_kwargs:
     drop_params: true
-    temperature: 0.6
+    temperature: 0.0
     parallel_tool_calls: true

@@ -127,9 +127,7 @@ class DistillConfig:
     # Sweagent config for rollout one to use. Should be included in SeraConfig.sweagent_cfgs
     stage_one_config_name: str = "e2e"
     # Sweagent config for rollout two to use. Should be included in SeraConfig.sweagent_cfgs
-    stage_two_config_name: str = "qwen"
-    # Agent harness to use: "sweagent" for SERA-SWE-Agent, "mini-swe-agent" for mini-swe-agent
-    agent_harness: str = "sweagent"
+    stage_two_config_name: str = "e2e"
 
 @dataclass
 class EvalConfig:
@@ -166,9 +164,11 @@ class SeraConfig:
     # Directory storing full sweagent configs
     sweagent_cfg_dir: str = "./sera/configs/sweagent/"
     # Which sweagent configs to load into this experiment
-    sweagent_cfgs: List[str] = field(default_factory=lambda: ["e2e", "qwen"])
+    sweagent_cfgs: List[str] = field(default_factory=lambda: ["e2e", "e2e"])
     # Stage specific configs
     generate: GenerateConfig = field(default_factory=GenerateConfig)
     distill: DistillConfig = field(default_factory=DistillConfig)
     postprocess: PostprocessConfig = field(default_factory=PostprocessConfig)
     eval: EvalConfig = field(default_factory=EvalConfig)
+    # Agent harness to use: "sweagent" for SERA-SWE-Agent, "mini-swe-agent" for mini-swe-agent
+    agent_harness: str = "sweagent"

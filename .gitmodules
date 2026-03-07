@@ -2,3 +2,7 @@
 	path = modules/SERA-SWE-Agent
 	url = https://github.com/allenai/SERA-SWE-agent
 	branch = main
+[submodule "modules/SERA-mini-swe-agent"]
+	path = modules/SERA-mini-swe-agent
+	url = git@github.com:allenai/mini-swe-agent.git
+	branch = main

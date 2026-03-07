@@ -4,6 +4,12 @@ Test SERA in Claude Code for Free: https://github.com/allenai/sera-cli.
 
 Technical Report: https://allenai.org/papers/opencodingagents
 
+We support:
+- Data generation from arbitrary personal codebases
+- Data generation from existing code containers (SWE-Bench, SWE-smith, etc.)
+- Data generation using open or closed source models
+- SWE-agent and mini-swe-agent frameworks
+
 # Installation
 
 Clone the repository locally, and then set up the environment.
@@ -14,7 +20,7 @@ git clone --recurse-submodules https://github.com/allenai/SERA.git
 cd SERA
 conda create -n sera python=3.12
 conda activate sera
-pip install -e . -e modules/code2flow -e modules/SERA-SWE-agent 
+pip install -e . -e modules/code2flow -e modules/SERA-SWE-agent -e modules/SERA-mini-swe-agent
 ```
 
 # Generation
@@ -96,6 +102,19 @@ If you want to use closed-source models, then the step of creating inference ser
 python sera/main.py \
     --config-name=specialization_anthropic \
     generate.docker.gh_mirror_org=oca-repos
+```
+
+### 4. Switching Frameworks
+
+SWE-agent is the default harness but mini-swe-agent can be set as the harness. See the following toy example.
+```
+python sera/main.py \
+    --config-name=specialization_django_anthropic \
+    sweagent_cfgs=[mini_e2e,mini_e2e] \
+    agent_harness=mini-swe-agent \
+    distill.stage_one_config_name=mini_e2e \
+    distill.stage_two_config_name=mini_e2e \
+    name=test_mini_swe_agent
 ```
 
 ## Multiple Servers
@@ -193,7 +212,7 @@ python sera/main.py --config-name=specialization_django \
 | `experiment_dir` | str | `"./experiments"` | Where to save experiment data (trajectories, rollouts, outputs) |
 | `metadata_dir` | str | `"./metadata"` | Where to save parsed codebase graphs and other metadata |
 | `sweagent_cfg_dir` | str | `"./sera/configs/sweagent/"` | Directory containing full SWE-agent config YAML files |
-| `sweagent_cfgs` | list[str] | `["e2e", "qwen"]` | Which SWE-agent configs to load into the experiment |
+| `sweagent_cfgs` | list[str] | `["e2e", "mini_e2e"]` | Which SWE-agent configs to load into the experiment |
 
 ## Generate Settings (`generate.*`)
 
@@ -267,7 +286,7 @@ For repositories with pre-built Docker containers (SWE-Bench, SWE-Smith, etc.). 
 | `distill.shard` | int | `0` | Current shard index (0-indexed) for parallel multi-server runs |
 | `distill.total_shards` | int | `1` | Total number of shards to split the data into |
 | `distill.stage_one_config_name` | str | `"e2e"` | SWE-agent config name for stage 1 rollouts. Must be in `sweagent_cfgs`. |
-| `distill.stage_two_config_name` | str | `"qwen"` | SWE-agent config name for stage 2 rollouts. Must be in `sweagent_cfgs`. |
+| `distill.stage_two_config_name` | str | `"e2e"` | SWE-agent config name for stage 2 rollouts. Must be in `sweagent_cfgs`. |
 | `distill.args` | dict | `{"pipeline": True, "pipeline_yaml": "sera/configs/pipeline/default_pipeline.yaml"}` | Extra args passed to SWE-agent. Use `distill.args.pipeline_repo=PATH` to provide custom PR issues. |
 
 ## Eval Settings (`eval.*`)

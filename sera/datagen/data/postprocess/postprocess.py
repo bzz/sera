@@ -18,9 +18,12 @@ from sera.datagen.data.postprocess.utils import (
     transform_traj_raw
 )
 from sera.constants import (
-    HERMES_DEFAULT_SYSTEM_PROMPT, 
+    HERMES_DEFAULT_SYSTEM_PROMPT,
     XML_DEFAULT_SYSTEM_PROMPT,
-    SWEAGENT_TOOLS
+    SWEAGENT_TOOLS,
+    MINI_SWEAGENT_HERMES_SYSTEM_PROMPT,
+    MINI_SWEAGENT_XML_SYSTEM_PROMPT,
+    MINI_SWEAGENT_TOOLS,
 )
 from sera.utils import dump_jsonl, ExperimentFolder
 
@@ -31,14 +34,41 @@ MAP_TO_PARSER = {
 }
 
 MAP_TO_SYSTEM_PROMPT = {
-    "xml": XML_DEFAULT_SYSTEM_PROMPT,
-    "hermes": HERMES_DEFAULT_SYSTEM_PROMPT,
-    "raw": None
+    "sweagent": {
+        "xml": XML_DEFAULT_SYSTEM_PROMPT,
+        "hermes": HERMES_DEFAULT_SYSTEM_PROMPT,
+        "raw": None,
+    },
+    "mini-swe-agent": {
+        "xml": MINI_SWEAGENT_XML_SYSTEM_PROMPT,
+        "hermes": MINI_SWEAGENT_HERMES_SYSTEM_PROMPT,
+        "raw": None,
+    },
 }
 
-def get_raw_trajectories(traj_dir: Path, report: Dict, tool_call_format: str, add_think: bool, enforce_submit: bool, tool_json: bool):
+MAP_TO_TOOL_JSON = {
+    "sweagent": SWEAGENT_TOOLS,
+    "mini-swe-agent": MINI_SWEAGENT_TOOLS,
+}
+
+def _normalize_mini_sweagent_traj(traj):
+    """Normalize mini-swe-agent traj format to match SWE-agent format for transform functions."""
+    normalized = dict(traj)
+    normalized["history"] = []
+    for msg in traj["messages"]:
+        if msg["role"] == "exit":
+            continue
+        msg = dict(msg)
+        if msg["role"] == "assistant" and msg.get("content") is None:
+            msg["content"] = ""
+        normalized["history"].append(msg)
+    return normalized
+
+def get_raw_trajectories(traj_dir: Path, report: Dict, tool_call_format: str, add_think: bool, enforce_submit: bool, tool_json: bool, agent_harness: str = "sweagent"):
     transform_traj = MAP_TO_PARSER[tool_call_format]
-    system_prompt = MAP_TO_SYSTEM_PROMPT[tool_call_format]
+    system_prompt = MAP_TO_SYSTEM_PROMPT[agent_harness][tool_call_format]
+    tools_json = MAP_TO_TOOL_JSON[agent_harness]
+
     def _process_folder(folder):
         if report and folder not in report["resolved_ids"]:
             return None
@@ -53,7 +83,11 @@ def get_raw_trajectories(traj_dir: Path, report: Dict, tool_call_format: str, ad
             if not synth_json["is_good_patch"]:
                 return None
 
-        traj_path = os.path.join(traj_dir, folder, f"{folder}.traj")
+        # Handle different traj file extensions
+        if agent_harness == "mini-swe-agent":
+            traj_path = os.path.join(traj_dir, folder, f"{folder}.traj.json")
+        else:
+            traj_path = os.path.join(traj_dir, folder, f"{folder}.traj")
         if not os.path.exists(traj_path):
             return None
 
@@ -62,8 +96,14 @@ def get_raw_trajectories(traj_dir: Path, report: Dict, tool_call_format: str, ad
         except json.JSONDecodeError:
             return None
 
-        if enforce_submit and raw_traj_json["info"].get("exit_status", "") != "submitted":
+        # Handle different exit status casing
+        exit_status = raw_traj_json["info"].get("exit_status", "")
+        if enforce_submit and exit_status.lower() != "submitted":
             return None
+
+        # Normalize mini-swe-agent format to match what transforms expect
+        if agent_harness == "mini-swe-agent":
+            raw_traj_json = _normalize_mini_sweagent_traj(raw_traj_json)
 
         traj = transform_traj(raw_traj_json, system_prompt, add_think=add_think)
         if not traj:
@@ -72,7 +112,7 @@ def get_raw_trajectories(traj_dir: Path, report: Dict, tool_call_format: str, ad
 
         traj["instance_id"] = folder
         if tool_json:
-            traj["tool_json"] = SWEAGENT_TOOLS
+            traj["tool_json"] = tools_json
         return traj
 
     # Convert folders to data trajectories
@@ -97,7 +137,7 @@ def create_file_name(config: PostprocessConfig, traj_dir: Path, report_path: Pat
                     report_path_name,
                     f"addthink-{config.add_think}",
                     f"atk-{config.add_train_key}",
-                    f"rft-{bool(config.reformat_assistant_message) and config.tool_call_format == "hermes"}",
+                    f"rft-{bool(config.reformat_assistant_message) and config.tool_call_format == 'hermes'}",
                     f"format-{config.tool_call_format}"]) + ".jsonl"
 
 def format_and_save(
@@ -105,18 +145,20 @@ def format_and_save(
     traj_dir: Path,
     report_path: Optional[Path],
     out_dir: Path,
+    agent_harness: str = "sweagent",
 ):
     report = None
     if report_path:
         print("Only keeping trajectories for resolved instances")
         with open(report_path, "r") as f:
             report = json.load(f)
-    dataset = get_raw_trajectories(traj_dir=traj_dir, 
-                                            report=report, 
-                                            tool_call_format=config.tool_call_format, 
-                                            add_think=config.add_think, 
+    dataset = get_raw_trajectories(traj_dir=traj_dir,
+                                            report=report,
+                                            tool_call_format=config.tool_call_format,
+                                            add_think=config.add_think,
                                             enforce_submit=config.enforce_submit,
-                                            tool_json=config.include_tool_json)
+                                            tool_json=config.include_tool_json,
+                                            agent_harness=agent_harness)
     print(f"Found {len(dataset)} valid trajectories")
 
     if config.add_train_key:

@@ -63,7 +63,7 @@ class Experiment:
     def _run_distill_one(self, cfg: DistillConfig, skip: bool = False) -> None:
         logger.info("Stage: DISTILL_ONE%s", " (skipped)" if skip else "")
         logger.debug("Config:\n%s", OmegaConf.to_yaml(cfg))
-        stage_one_output_dir, stage_one_instances_fp = distill_method(config=cfg, folder=self.folder, stage="stage_one", metadata_only=skip)
+        stage_one_output_dir, stage_one_instances_fp = distill_method(config=cfg, folder=self.folder, stage="stage_one", agent_harness=self.general_cfg.agent_harness, metadata_only=skip)
         self.stage_one_output_dir = stage_one_output_dir
         self.stage_one_instances_fp = stage_one_instances_fp
 
@@ -72,9 +72,9 @@ class Experiment:
         logger.debug("Config:\n%s", OmegaConf.to_yaml(cfg))
         stage_two_instances_fp = self.folder.data_dir / "stage_two_instances.yaml"
         if not skip and not stage_two_instances_fp.exists():
-            synthetic_pr_instances = scrape_synthetic_prs(self.stage_one_instances_fp, self.stage_one_output_dir)
+            synthetic_pr_instances = scrape_synthetic_prs(self.stage_one_instances_fp, self.stage_one_output_dir, agent_harness=self.general_cfg.agent_harness)
             save_yaml(stage_two_instances_fp, synthetic_pr_instances)
-        stage_two_output_dir, stage_two_instances_fp = distill_method(config=cfg, folder=self.folder, stage="stage_two", metadata_only=skip)
+        stage_two_output_dir, stage_two_instances_fp = distill_method(config=cfg, folder=self.folder, stage="stage_two", agent_harness=self.general_cfg.agent_harness, metadata_only=skip)
         self.stage_two_output_dir = stage_two_output_dir
         self.stage_two_instances_fp = stage_two_instances_fp
 
@@ -85,15 +85,16 @@ class Experiment:
         if skip:
             self.report_fp = report_fp
             return
-        resolved_instances = eval_loop(cfg, instances_fp=self.stage_two_instances_fp, second_stage_dir=self.stage_two_output_dir)
+        resolved_instances = eval_loop(cfg, instances_fp=self.stage_two_instances_fp, second_stage_dir=self.stage_two_output_dir, agent_harness=self.general_cfg.agent_harness)
         dump_json(report_fp, {"resolved_ids": resolved_instances})
         self.report_fp = report_fp
 
     def _run_postprocess(self, cfg: PostprocessConfig, skip: bool = False) -> None:
         logger.info("Stage: POSTPROCESS%s", " (skipped)" if skip else "")
         logger.debug("Config:\n%s", OmegaConf.to_yaml(cfg))
-        stage_one_fp = format_and_save(config=cfg, traj_dir=self.stage_one_output_dir, report_path=None, out_dir=self.folder.data_dir)
-        stage_two_fp = format_and_save(config=cfg, traj_dir=self.stage_two_output_dir, report_path=self.report_fp, out_dir=self.folder.data_dir)
+        agent_harness = self.general_cfg.agent_harness
+        stage_one_fp = format_and_save(config=cfg, traj_dir=self.stage_one_output_dir, report_path=None, out_dir=self.folder.data_dir, agent_harness=agent_harness)
+        stage_two_fp = format_and_save(config=cfg, traj_dir=self.stage_two_output_dir, report_path=self.report_fp, out_dir=self.folder.data_dir, agent_harness=agent_harness)
         logger.info("Output - Stage One: %s", stage_one_fp)
         logger.info("Output - Stage Two: %s", stage_two_fp)
 

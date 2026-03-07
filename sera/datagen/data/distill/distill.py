@@ -10,7 +10,12 @@ from tqdm import tqdm
 from typing import List
 
 from sera.config_schema import DistillConfig, ModelConfig, SWEAgentWrapperConfig
-from sera.utils import ExperimentFolder, load_yaml
+from sera.utils import (
+    get_sweagent_patch,
+    get_mini_sweagent_patch,
+    ExperimentFolder, 
+    load_yaml,
+)
 
 def get_dataset_shard(instances_fp, shard, total_shards):
     if shard > total_shards - 1 or shard < 0:
@@ -36,7 +41,7 @@ def get_dataset_shard(instances_fp, shard, total_shards):
 
 class DistillRunner:
 
-    def __init__(self, config: DistillConfig, folder: ExperimentFolder, instances_fp: Path, cfg_fp: Path, args={}):
+    def __init__(self, config: DistillConfig, folder: ExperimentFolder, instances_fp: Path, cfg_fp: Path, agent_harness: str = "sweagent", args={}):
         print(instances_fp, cfg_fp)
         assert instances_fp.exists() and cfg_fp.exists()
         self.config = config
@@ -48,6 +53,7 @@ class DistillRunner:
         self.folder = folder
         self.args = args
         self.model = config.model
+        self.agent_harness = agent_harness
         
         if config.shard >= config.total_shards:
             raise RuntimeError("Cannot have a shard index more than what the total shards allows")
@@ -64,7 +70,7 @@ class DistillRunner:
     def name(self):
         if self.shard:
             name = "_".join([self.run_title,
-                            self.config.agent_harness,
+                            self.agent_harness,
                             self.cfg_name,
                             self.model.name,
                             f"{self.shard}-{self.total_shards}",
@@ -74,7 +80,7 @@ class DistillRunner:
                             f"mtcost{self.config.sweagent_wrapper_config.total_cost_limit}",])
         else:
             name = "_".join([self.run_title,
-                            self.config.agent_harness,
+                            self.agent_harness,
                             self.model.name,
                             self.cfg_name,
                             f"t{self.config.sweagent_wrapper_config.temperature}",
@@ -168,7 +174,7 @@ class DistillRunner:
             model_name, model_api_base = self.model.name, self.model.url
             print(model_name, model_api_base)
 
-            agent_harness = getattr(self.config, "agent_harness", "sweagent")
+            agent_harness = self.agent_harness
             if agent_harness == "mini-swe-agent":
                 cmd = self._build_mini_swe_agent_cmd(
                     output_dir, num_workers, model_name, model_api_base,
@@ -181,7 +187,7 @@ class DistillRunner:
                 )
 
             for key, value in self.args.items():
-                if isinstance(value, bool):
+                if agent_harness in ["mini-swe-agent"] and isinstance(value, bool):
                     if value:
                         cmd = cmd + f" --{key}"
                 else:
@@ -194,31 +200,21 @@ class DistillRunner:
         return Path(output_dir)
 
 # Maybe make this just run with the current run, process just this shard or wtv based on the class
-def scrape_synthetic_prs(instance_fp: Path, traj_dir: Path, remove_duplicates: bool = True):
+def scrape_synthetic_prs(instance_fp: Path, traj_dir: Path, agent_harness: str):
     instance_dict = {}
     seen_patches = set()
     with open(instance_fp, "r") as f:
         instances = yaml.safe_load(f)
         for inst in tqdm(instances):
-            inst_pred = os.path.join(traj_dir, inst["id"], f"{inst['id']}.pred")
-            # Get pred patches
-            if os.path.exists(inst_pred):
-                with open(inst_pred, "r") as f:
-                    try:
-                        pred_json = json.load(f)
-                    except json.decoder.JSONDecodeError as e:
-                        continue
-                    model_patch = pred_json["model_patch"]
-                if model_patch:
-                    inst["extra_fields"]["pred_patch"] = model_patch
-                    if remove_duplicates:
-                        if model_patch in seen_patches:
-                            continue
-                        else:
-                            seen_patches.add(model_patch)
-                else:
-                    print(f"did not find pred patch for {inst['id']}")
-                    continue
+            if agent_harness == "sweagent":
+                model_patch = get_sweagent_patch(traj_dir, inst["id"], seen_patches)
+            elif agent_harness == "mini-swe-agent":
+                model_patch = get_mini_sweagent_patch(traj_dir, inst["id"], seen_patches)
+            else:
+                raise RuntimeError("Agent harness must be sweagent | mini-swe-agent")
+            if model_patch:
+                seen_patches.add(model_patch)
+                inst["extra_fields"]["pred_patch"] = model_patch
             else:
                 continue
             synth_path = os.path.join(traj_dir, inst["id"], f"{inst['id']}.synth")
@@ -238,7 +234,7 @@ def scrape_synthetic_prs(instance_fp: Path, traj_dir: Path, remove_duplicates: b
         instances_with_prs.append(inst)
     return instances_with_prs
 
-def main(config: DistillConfig, folder: ExperimentFolder, stage: str, metadata_only: bool = False): # TODO: Add save configs to experiment fodler
+def main(config: DistillConfig, folder: ExperimentFolder, stage: str, agent_harness: str = "sweagent", metadata_only: bool = False): # TODO: Add save configs to experiment fodler
     assert stage in ["stage_one", "stage_two"]
     args = OmegaConf.to_container(config.args, resolve=True)
     if stage == "stage_one":
@@ -250,7 +246,7 @@ def main(config: DistillConfig, folder: ExperimentFolder, stage: str, metadata_o
         config_fp = folder.config_dir / f"{config.stage_two_config_name}.yaml"
         # Set pipeline to False if starting from a later stage because the instance yamls are configured for normal SWE-agent
         args["pipeline"] = False
-    distiller = DistillRunner(config=config, folder=folder, instances_fp=instances_fp, cfg_fp=config_fp, args=args)
+    distiller = DistillRunner(config=config, folder=folder, instances_fp=instances_fp, cfg_fp=config_fp, agent_harness=agent_harness, args=args)
     if metadata_only:
         output_dir = distiller.output_dir
     else:
