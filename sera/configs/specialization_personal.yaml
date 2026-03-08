@@ -12,20 +12,22 @@ generate:
   fns_per_repo: 5000
   insts_per_fn: 1
   personal_repos:
-    - org_name: OpenHands
-      last_name: OpenHands
-      commits: # Provide exact commits to make containers on OR we automatically scrape some if not provided
-        - 29b77be807e0e6aab380d953c0d79a166df4f0cc
-        - cc8b677f3ec324fb7b9de86229f727b25741a66c
-      install_cmds: # This is the default but sometimes personal repositories have their own installations
-        - "pip install -e ."
-      test_cmd: null
-      python_version: "3.12" # For the docker container
-      top_level_folder:
-      # The main folder to look for to parse out functions.
-      # Multiple folders can be provided if the main folder changes through commits
-      # If this isnt provided, we try to automatically identify it by checking for folders like src/
-        - openhands
+    # This is a more comprehensive usecase, with full arguments defined in config_schema.py and the README.md.
+    # ----------------------------
+    # - org_name: OpenHands
+    #   last_name: OpenHands
+    #   commits: # Provide exact commits to make containers on OR we automatically scrape some if not provided
+    #     - 29b77be807e0e6aab380d953c0d79a166df4f0cc
+    #     - cc8b677f3ec324fb7b9de86229f727b25741a66c
+    #   install_cmds: # This is the default but sometimes personal repositories have their own installations
+    #     - "pip install -e ."
+    #   test_cmd: null
+    #   python_version: "3.12" # For the docker container
+    #   top_level_folder:
+    #   # The main folder to look for to parse out functions.
+    #   # Multiple folders can be provided if the main folder changes through commits
+    #   # If this isnt provided, we try to automatically identify it by checking for folders like src/
+    #     - openhands
     - org_name: R2E-Gym
       last_name: R2E-Gym
       install_cmds: 

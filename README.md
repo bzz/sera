@@ -59,13 +59,13 @@ python sera/main.py \
 ### 2. Specialization to Personal Repositories
 
 [sera/configs/specialization_personal.yaml](sera/configs/specialization_personal.yaml) defines a set of arbitrary codebases to generate data from.
+We use [R2E-Gym](https://github.com/R2E-Gym/R2E-Gym) as a toy repository to specialize to.
 
 ```
 python sera/main.py \
     --config-name=specialization_personal \
     distill.model.name=openai/GLM-4.5-Air \
-    distill.model.url=URL \
-    generate.docker.gh_mirror_org=oca-repos
+    distill.model.url=URL
 ```
 
 Personal repositories require a little more involvement to generate data because we need to identify the main code folder, installation commands, etc. We suggest modifying the yaml file directly for this, instead of through CLI.
@@ -88,8 +88,6 @@ Personal repositories require a little more involvement to generate data because
         - "pip install -e ."
 ```
 
-Right now, specialization requires a **Github organization** to store repository mirrors. We provide oca-repos as a public Github organization for mirrors,  but users should create their own if they want to generate data from private codebases. See [Creating GitHub Mirrors and Pushing Containers](#creating-github-mirrors).
-
 You can also set a **Docker organization** to push images to using `generate.docker.docker_org=DOCKER_ORG`. This makes it so created images are persistent. Make sure you have push permissions for the organization you choose. Otherwise, created images will be rebuilt every time the pipeline is rerun, taking a few extra minutes.
 
 The default synthetic PRs created in the second rollout use SWE-Bench as demonstrations. In [Personal PR Issues](#personal-pr-issues), we explain how you can set the demonstrations to be your own PR issues.
@@ -100,8 +98,7 @@ If you want to use closed-source models, then the step of creating inference ser
 
 ```
 python sera/main.py \
-    --config-name=specialization_anthropic \
-    generate.docker.gh_mirror_org=oca-repos
+    --config-name=specialization_anthropic
 ```
 
 ### 4. Switching Frameworks

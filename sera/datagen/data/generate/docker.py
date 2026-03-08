@@ -13,13 +13,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from swesmith.build_repo.try_install_py import main as try_install_main
-from swesmith.constants import LOG_DIR_ENV
+from swesmith.constants import LOG_DIR_ENV, ENV_NAME
 from swesmith.profiles import registry
 from swesmith.profiles.base import RepoProfile
 from swesmith.profiles.python import PythonProfile
 from swesmith.profiles.golang import GoProfile
 from swesmith.profiles.rust import RustProfile
 from swesmith.profiles.javascript import JavaScriptProfile
+from swebench.harness.dockerfiles import get_dockerfile_env
+from swebench.harness.docker_build import build_image as build_image_sweb
 
 
 # Map of language names to their base profile classes
@@ -156,6 +158,50 @@ def create_profile_class(
 
     return profile_class
 
+def build_image_no_mirror(profile):
+    """
+    Build Docker image cloning directly from the original repo instead of a mirror.
+    Used when no gh_mirror_org is configured.
+    """
+    BASE_IMAGE_KEY = "jyangballin/swesmith.x86_64"
+    HEREDOC_DELIMITER = "EOF_59812759871"
+    PATH_TO_REQS = "swesmith_environment.yml"
+
+    client = docker.from_env()
+    with open(profile._env_yml) as f:
+        reqs = f.read()
+
+    setup_commands = [
+        "#!/bin/bash",
+        "set -euxo pipefail",
+        f"git clone -o origin https://github.com/{profile.owner}/{profile.repo} /{ENV_NAME}",
+        f"cd /{ENV_NAME}",
+        f"git checkout {profile.commit}",
+        "source /opt/miniconda3/bin/activate",
+        f"cat <<'{HEREDOC_DELIMITER}' > {PATH_TO_REQS}\n{reqs}\n{HEREDOC_DELIMITER}",
+        f"conda env create --file {PATH_TO_REQS}",
+        f"conda activate {ENV_NAME} && conda install python={profile.python_version} -y",
+        f"rm {PATH_TO_REQS}",
+        f"conda activate {ENV_NAME}",
+        'echo "Current environment: $CONDA_DEFAULT_ENV"',
+    ] + profile.install_cmds
+
+    print("Getting dockerfile...")
+    dockerfile = get_dockerfile_env(
+        profile.pltf, profile.arch, "py", base_image_key=BASE_IMAGE_KEY
+    )
+
+    print("Building sweb image...")
+    build_image_sweb(
+        image_name=profile.image_name,
+        setup_scripts={"setup_env.sh": "\n".join(setup_commands) + "\n"},
+        dockerfile=dockerfile,
+        platform=profile.pltf,
+        client=client,
+        build_dir=LOG_DIR_ENV / profile.repo_name,
+    )
+
+
 def docker_image_exists(image_name: str) -> bool:
     cp = subprocess.run(
         ["docker", "image", "inspect", image_name],
@@ -244,7 +290,10 @@ def build_profile_image(
         # Step 3: Build Docker image
         print("\nStep 3/4: Building Docker image...")
         print("This may take several minutes...")
-        profile.build_image()
+        if create_mirror:
+            profile.build_image()
+        else:
+            build_image_no_mirror(profile)
         print(f"✓ Image built successfully: {profile.image_name}")
 
         # We override this attribute because its not set correctly by swesmith.
@@ -323,7 +372,7 @@ def build_container(
             success, error = build_profile_image(
                 profile,
                 language=config['language'],
-                create_mirror=True,
+                create_mirror=True if org_gh else False,
                 push_image=True if org_dh else False,
                 force=True, # TODO: If there's any error in building that user fixes, this allows a retry. Make it a toggle
                 package_name=package_name
